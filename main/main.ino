@@ -43,9 +43,9 @@ String weatherString;
 // =======================================================================
 const char* ssid     = "arunee784 2G";     // SSID of local network
 const char* password = "cankim01";   // Password on network
-String weatherKey = "deb88f35850ad1216f787bc647c4939f";
+String weatherKey = "280583189452d44eebf09fe2ad36b3f2"; //Strik3agle's API, get your own API key
 String weatherLang = "&lang=en";
-String cityID = "1185241"; //Dhaka
+String cityID = "1609350"; //Bangkok
 // read OpenWeather api description for more info
 // =======================================================================
 
