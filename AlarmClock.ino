@@ -9,7 +9,9 @@
 #include "Arduino.h"
 #include <ESP8266WiFi.h>
 #include <ArduinoJson.h>
-
+#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
+LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 const byte chips = 8; //number of matrix in the display
 
 // for NodeMCU 1.0
@@ -34,7 +36,7 @@ float windSpeed;
 String date;
 int h,m,s;
 int sunrise, sunset;
-
+String payload;
 String weatherString;
 
 // =======================================================================
@@ -58,18 +60,23 @@ void setup ()
   {
 //  display.begin ();
 //  display.setIntensity (1);
-
+  lcd.begin(20, 4);
+  lcd.setCursor(0,1);
   Serial.begin(115200);
   Serial.print("Connecting WiFi ");
+  lcd.print("Connecting");
   WiFi.begin(ssid, password);
   //printStringWithShift("Connecting",15);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
+    lcd.print(".");
   }
   Serial.println("");
   Serial.print("Connected: "); Serial.println(WiFi.localIP());
-
+  lcd.home();
+  lcd.setCursor(5,1);
+  lcd.clear();
   //getWeatherData();
   String str = weatherString;
   int str_len = str.length() + 1; 
@@ -101,43 +108,41 @@ void loop ()
   if((millis()- last)>1000*60*15){  //update weather every 15 minutes 
     //getWeatherData();
     getTime();
-    String str = weatherString;
-    int str_len = str.length() + 1;
-    str.toCharArray(weather_message, str_len) ;
+    //String str = weatherString;
+    //int str_len = str.length() + 1;
+    //str.toCharArray(weather_message, str_len) ;
     last = millis();
    }
    
-  // update display if time is up
-  if(s>0 && s<40){
-  if (millis () - lastMoved >= MOVE_INTERVAL)
-    {
-      //updateDisplay(weather_message);
-      lastMoved = millis ();
-    }  
-  }
-
-  if(s>40 && s<55){
-  if (millis () - lastMoved >= MOVE_INTERVAL)
-    {
-      //updateDisplay(date_message);
-      lastMoved = millis ();
-    }  
-  }
-  /*
-  // do other stuff here    
-  if(millis()-lastTime>65000){ 
-    long now = millis();
-    do{
-      updateTime();
-      showTime();
-      }while(millis()-now<40000);
-    now = millis();
-    lastTime = millis();
-  }  
-   */
-   if(s>55){
-      //showTime(); 
-    }
+//  // update display if time is up
+//  if(s>0 && s<40){
+//  if (millis () - lastMoved >= MOVE_INTERVAL)
+//    {
+//      //updateDisplay(weather_message);
+//      lastMoved = millis ();
+//    }  
+//  }
+//
+//  if(s>40 && s<55){
+//  if (millis () - lastMoved >= MOVE_INTERVAL)
+//    {
+//      //updateDisplay(date_message);
+//      lastMoved = millis ();
+//    }  
+//  }
+//  /*
+//  // do other stuff here    
+//  if(millis()-lastTime>65000){ 
+//    long now = millis();
+//    do{
+//      updateTime();
+//      showTime();
+//      }while(millis()-now<40000);
+//    now = millis();
+//    lastTime = millis();
+//  }  
+//   */
+ showTime(); 
    
  updateTime();
 
@@ -148,36 +153,50 @@ void loop ()
 // =======================================================================
 // retrive weather data
 
-const char *weatherHost = "api.openweathermap.org";
+//const char *weatherHost = "api.openweathermap.org";
 
 void getWeatherData()
 {
-  Serial.print("connecting to "); Serial.println(weatherHost);
-  if (client.connect(weatherHost, 80)) {
-    client.println(String("GET /data/2.5/weather?id=") + cityID + "&units=metric&appid=" + weatherKey + weatherLang + "\r\n" +
-                "Host: " + weatherHost + "\r\nUser-Agent: ArduinoWiFi/1.1\r\n" +
-                "Connection: close\r\n\r\n");
-  } else {
-    Serial.println("connection failed");
-    return;
-  }
-  String line;
-  int repeatCounter = 0;
-  while (!client.available() && repeatCounter < 10) {
-    delay(500);
-    Serial.println("w.");
-    repeatCounter++;
-  }
-  while (client.connected() && client.available()) {
-    char c = client.read(); 
-    if (c == '[' || c == ']') c = ' ';
-    line += c;
-  }
-  Serial.println(line);
-  client.stop();
+//  Serial.print("connecting to "); Serial.println(weatherHost);
+//  if (client.connect(weatherHost, 80)) {
+//    client.println(String("GET /data/2.5/weather?id=") + cityID + "&units=metric&appid=" + weatherKey + weatherLang + "\r\n" +
+//                "Host: " + weatherHost + "\r\nUser-Agent: ArduinoWiFi/1.1\r\n" +
+//                "Connection: close\r\n\r\n");
+//  } else {
+//    Serial.println("connection failed");
+//    return;
+//  }
+//  String line;
+//  int repeatCounter = 0;
+//  while (!client.available() && repeatCounter < 10) {
+//    delay(500);
+//    Serial.println("w.");
+//    repeatCounter++;
+//  }
+//  while (client.connected() && client.available()) {
+//    char c = client.read(); 
+//    if (c == '[' || c == ']') c = ' ';
+//    line += c;
+//  }
+//  Serial.println(line);
+//  client.stop();
 
+  HTTPClient http;
+  http.begin("https://api.openweathermap.org/data/2.5/weather?id=1609350&units=metric&appid=280583189452d44eebf09fe2ad36b3f2");
+  int httpCode = http.GET(); //still doesn't work
+  Serial.print(httpCode);
+  Serial.print("Connecting to api.openweathermap.org");
+  while(httpCode <= 0){
+    Serial.print(".");
+    delay(500);
+  }
+  payload=http.getString();
+  Serial.println(payload);
+  http.end();
+  //get data from api
+  
   DynamicJsonBuffer jsonBuf;
-  JsonObject &root = jsonBuf.parseObject(line);
+  JsonObject &root = jsonBuf.parseObject(payload);
   if (!root.success())
   {
     Serial.println("parseObject() failed");
@@ -270,19 +289,19 @@ void updateTime()
 
 // =======================================================================
 long lastmillis=millis();
-//void showTime()
-//{
-//    String timeString = "";
-//    timeString+= h/10 ? h/10 : 0;
-//    timeString+= h%10;
-//    timeString+= ":";
-//    timeString+= m/10;
-//    timeString+= m%10;
-//    timeString+= ":";
-//    timeString+= s/10;
-//    timeString+= s%10;   
-//    String clock_time = timeString;
-//    int clock_len = clock_time.length() + 1; 
-//    clock_time.toCharArray(time_message, clock_len) ;
-//    display.sendString(time_message);
-//}
+void showTime(){
+  lcd.setCursor(6,1);
+  String timeString = "";
+  timeString+= h/10 ? h/10 : 0;
+  timeString+= h%10;
+  timeString+= ":";
+  timeString+= m/10;
+  timeString+= m%10;
+  timeString+= ":";
+  timeString+= s/10;
+  timeString+= s%10;   
+  String clock_time = timeString;
+  int clock_len = clock_time.length() + 1; 
+  clock_time.toCharArray(time_message, clock_len) ;
+  lcd.print(time_message);
+}
