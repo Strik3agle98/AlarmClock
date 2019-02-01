@@ -5,7 +5,7 @@
 #include <SPI.h>
 //#include <bitBangedSPI.h>
 //#include <MAX7219_Dot_Matrix.h>
-
+#include <ESP8266HTTPClient.h>
 #include "Arduino.h"
 #include <ESP8266WiFi.h>
 #include <ArduinoJson.h>
@@ -35,12 +35,12 @@ String date;
 int h,m,s;
 int sunrise, sunset;
 
-String currencyRates;
 String weatherString;
 
 // =======================================================================
 // CHANGE YOUR CONFIG HERE:
 // =======================================================================
+int timezone = 7; //GMT+7
 const char* ssid     = "arunee784 2G";     // SSID of local network
 const char* password = "cankim01";   // Password on network
 String weatherKey = "280583189452d44eebf09fe2ad36b3f2"; //Strik3agle's API, get your own API key
@@ -70,7 +70,7 @@ void setup ()
   Serial.println("");
   Serial.print("Connected: "); Serial.println(WiFi.localIP());
 
-  getWeatherData();
+  //getWeatherData();
   String str = weatherString;
   int str_len = str.length() + 1; 
   str.toCharArray(weather_message, str_len) ;   
@@ -99,7 +99,7 @@ long lastTime = millis();
 void loop () 
   { 
   if((millis()- last)>1000*60*15){  //update weather every 15 minutes 
-    getWeatherData();
+    //getWeatherData();
     getTime();
     String str = weatherString;
     int str_len = str.length() + 1;
@@ -140,7 +140,8 @@ void loop ()
     }
    
  updateTime();
-       
+
+ if(millis() < last) last = 0;
 }  // end of loop
 
 
@@ -208,61 +209,6 @@ void getWeatherData()
   Serial.println(weatherString);
 }
 
-// =======================================================================
-// retrive curency rate
-
-const char* currencyHost = "cinkciarz.pl";
-
-void getCurrencyRates()
-{
-  WiFiClientSecure client;
-  Serial.print("connecting to "); Serial.println(currencyHost);
-  if (!client.connect(currencyHost, 443)) {
-    Serial.println("connection failed");
-    return;
-  }
-  client.print(String("GET / HTTP/1.1\r\n") +
-               "Host: " + currencyHost + "\r\nConnection: close\r\n\r\n");
-
-  //Serial.print("request sent");
-  int repeatCounter = 0;
-  while (!client.available() && repeatCounter < 10) {
-    delay(500);
-    Serial.println("c.");
-    repeatCounter++;
-  }
-  Serial.println("connected");
-  while (client.connected() && client.available()) {
-    String line = client.readStringUntil('\n');
-    //      Serial.println(line);
-    int currIdx = line.indexOf("/kantor/kursy-walut-cinkciarz-pl/usd");
-    if (currIdx > 0) {
-      String curr = line.substring(currIdx + 33, currIdx + 33 + 3);
-      curr.toUpperCase();
-      line = client.readStringUntil('\n');
-      int rateIdx = line.indexOf("\">");
-      if (rateIdx <= 0) {
-        Serial.println("Found rate but wrong structure!");
-        return;
-      }
-      currencyRates = "        PLN/" + curr + ": ";
-      if (line[rateIdx - 1] == 'n') currencyRates += char('~'+24); else currencyRates += char('~'+23); // down/up
-      currencyRates += line.substring(rateIdx + 2, rateIdx + 8) + " ";
-
-      line = client.readStringUntil('\n');
-      rateIdx = line.indexOf("\">");
-      if (rateIdx <= 0) {
-        Serial.println("Found rate but wrong structure!");
-        return;
-      }
-      if (line[rateIdx - 1] == 'n') currencyRates += char('~'+24); else currencyRates += char('~'+23); // down/up
-      currencyRates += line.substring(rateIdx + 2, rateIdx + 8);
-      currencyRates.replace(',', '.');
-      break;
-    }
-  }
-  client.stop();
-}
 
 // =======================================================================
 
@@ -277,7 +223,7 @@ void getTime()
     Serial.println("connection to google failed");
     return;
   }
-
+  Serial.println("Connected to google");
   client.print(String("GET / HTTP/1.1\r\n") +
                String("Host: www.google.com\r\n") +
                String("Connection: close\r\n\r\n"));
@@ -295,12 +241,13 @@ void getTime()
     line.toUpperCase();
     if (line.startsWith("DATE: ")) {
       date = ""+line.substring(6, 22);
-      h = line.substring(23, 25).toInt();
+      h = line.substring(23, 25).toInt()+timezone; 
       m = line.substring(26, 28).toInt();
       s = line.substring(29, 31).toInt();
       localMillisAtUpdate = millis();
       localEpoc = (h * 60 * 60 + m * 60 + s);
 
+      Serial.println(line);
       String clock_date = date;
       int date_len = clock_date.length() + 1; 
       clock_date.toCharArray(date_message, date_len) ;
