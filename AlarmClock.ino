@@ -13,6 +13,9 @@
 LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 const byte chips = 8; //number of matrix in the display
 #define DHTPIN            14 //Pin connected to DHT
+int relayPin = 15;
+int switchPin = 16;
+int state = 0;
 // Uncomment the type of sensor in use:
 //#define DHTTYPE           DHT11     // DHT 11 
 #define DHTTYPE           DHT22     // DHT 22 (AM2302)
@@ -35,7 +38,7 @@ String weatherString;
 // =======================================================================
 // CHANGE YOUR CONFIG HERE:
 // =======================================================================
-int timezone = 7; //GMT+7
+//int timezone = 7; //GMT+7
 const char* ssid     = "arunee784 2G";     // SSID of local network
 const char* password = "cankim01";   // Password on network
 String weatherKey = "280583189452d44eebf09fe2ad36b3f2"; //Strik3agle's API, get your own API key
@@ -125,7 +128,7 @@ long localMillisAtUpdate = 0;
 void getTime()
 {
   WiFiClient client;
-  if (!client.connect("www.google.com", 80)) {
+  if (!client.connect("www.google.co.th", 80)) {
     Serial.println("connection to google failed");
     return;
   }
@@ -147,13 +150,16 @@ void getTime()
     line.toUpperCase();
     if (line.startsWith("DATE: ")) {
       date = ""+line.substring(6, 22);
-      h = line.substring(23, 25).toInt()+timezone; 
+      h = line.substring(23, 25).toInt()+5; 
+      if(h>=24){
+        h-=24;
+        int TD = date.substring(5,7).toInt()+1;
+        date = date.substring(0,5)+String(TD)+date.substring(7,date.length());
+      }
       m = line.substring(26, 28).toInt();
       s = line.substring(29, 31).toInt();
       localMillisAtUpdate = millis();
       localEpoc = (h * 60 * 60 + m * 60 + s);
-
-      Serial.println(line);
       String clock_date = date;
       int date_len = clock_date.length() + 1; 
       clock_date.toCharArray(date_message, date_len) ;
@@ -184,6 +190,9 @@ void updateTime()
 // =======================================================================
 long lastmillis=millis();
 void showData(){
+  if(millis()%100 == 0){
+    lcd.clear();
+  }
   lcd.setCursor(6,1);
   String timeString = "";
   timeString+= h/10 ? h/10 : 0;
@@ -201,6 +210,6 @@ void showData(){
   String env = "T:" + String(temp)+"*c H:" + String(humidity)+"%";
   lcd.setCursor(2,2);
   lcd.print(env);
-  lcd.setCursor(3,3);
+  lcd.setCursor(2,3);
   lcd.print(date);
 }
